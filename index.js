@@ -4,28 +4,25 @@ const path = require("node:path");
 const { Client, Collection, Events, GatewayIntentBits } = require("discord.js");
 const { token } = require("./config.json");
 
-// Create new instance of the Client
+// Create new instance of the Client with necessary intents.
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
 client.commands = new Collection();
 
-// Retrieve command files
-const foldersPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(foldersPath);
-
-for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
+/**
+ * Loads and registers commands from the specified directory path.
+ *
+ * @param {string} commandsPath - The path to the directory containing command files.
+ */
+const loadCommands = (commandsPath) => {
+  // Read the contents of the 'commandsPath' directory, only include files that end in '.js'
   const commandFiles = fs
     .readdirSync(commandsPath)
     .filter((file) => file.endsWith(".js"));
 
+  // For each command file, add it as a requirement and store the command in the path.
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
-
-    // Set new item in Collection with key as the command name and value as the exported module
-
-    // NOTE: EVERY COMMAND MUST HAVE A DATA OR EXECUTE FIELD WITHIN ITS EXPORT MODULE! IF IT DOESN'T, IT WON'T WORK HERE
 
     if ("data" in command && "execute" in command) {
       client.commands.set(command.data.name, command);
@@ -35,6 +32,14 @@ for (const folder of commandFolders) {
       );
     }
   }
+};
+
+const foldersPath = path.join(__dirname, "commands");
+const commandFolders = fs.readdirSync(foldersPath);
+
+for (const folder of commandFolders) {
+  const commandsPath = path.join(foldersPath, folder);
+  loadCommands(commandsPath);
 }
 
 // When client is ready, run this code.
@@ -60,16 +65,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
+    const response = {
+      content: "There was an error while executing this command!",
+      ephemeral: true,
+    };
+
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
+      await interaction.followUp(response);
     } else {
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
+      await interaction.reply(response);
     }
   }
 });
